@@ -49,6 +49,7 @@
 #     Batch Normalization
 #     Drop-out(p=0.5)
 # }
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -84,7 +85,7 @@ class ConvBlock(nn.Module):
 class SleepStageCNN(nn.Module):
     def __init__(self):
         super(SleepStageCNN, self).__init__()
-        self.block1 = ConvBlock(3, 32, 3, 1, (2, 2), 'max', 0.5)
+        self.block1 = ConvBlock(18, 32, 3, 1, (2, 2), 'max', 0.5)
         self.block2 = ConvBlock(32, 32, 3, 1, (2, 2), 'avg', 0.5)
         self.block3 = ConvBlock(32, 64, 3, 1, (2, 2), 'max', 0.5)
         self.block4 = ConvBlock(64, 64, 3, 1, (2, 2), 'avg', 0.5)
@@ -96,20 +97,16 @@ class SleepStageCNN(nn.Module):
         identity1 = x
         x = self.block2(x)
 
-        # Upscale identity1 if necessary
-        if x.size() != identity1.size():
-            identity1 = F.interpolate(identity1, size=(x.size(2), x.size(3)), mode='nearest')
 
+        identity1 = F.interpolate(identity1, size=(x.size(2), x.size(3)), mode='nearest')
         x += identity1  # Residual connection after block 2
 
         x = self.block3(x)
         identity2 = x
         x = self.block4(x)
 
-        # Upscale identity2 if necessary
-        if x.size() != identity2.size():
-            identity2 = F.interpolate(identity2, size=(x.size(2), x.size(3)), mode='nearest')
 
+        identity2 = F.interpolate(identity2, size=(x.size(2), x.size(3)), mode='nearest')
         x += identity2  # Residual connection after block 4
 
         x = self.block5(x)
@@ -117,8 +114,49 @@ class SleepStageCNN(nn.Module):
         x = torch.flatten(x, 1)
         return x
 
-# Example usage:
-model = SleepStageCNN()
-input_tensor = torch.randn(1, 3, 76, 60)  # Batch size of 1, and an image size of 76x60 with 3 channels
+
+class BiLSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(BiLSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
+                            batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size * 2, num_classes)  # Multiply by 2 for bidirectional
+
+    def forward(self, x):
+        # Set initial states
+        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)  # 2 for bidirectional
+        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
+        
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size*2)
+
+        # Decode the hidden state of the last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+class CNNBiLSTM(nn.Module):
+    def __init__(self):
+        super(CNNBiLSTM, self).__init__()
+        self.cnn = SleepStageCNN()
+        self.bilstm = BiLSTM(input_size=64, hidden_size=128, num_layers=2, num_classes=4)
+
+    def forward(self, x):
+        batch_size, seq_length, C, H, W = x.shape
+        # Process each image in the sequence through CNN
+        cnn_out = torch.tensor([]).to(x.device)
+        for i in range(seq_length):
+            out = self.cnn(x[:, i, :, :, :])  # Process each image through the CNN
+            cnn_out = torch.cat((cnn_out, out.unsqueeze(1)), dim=1)
+
+        # Now cnn_out should be [batch_size, seq_length, features]
+        output = self.bilstm(cnn_out)
+        return output
+
+# Assuming your input is a batch of images treated as a sequence
+input_tensor = torch.randn(1, 10, 18, 129, 111)  # 1 batch, 10 sequence length, 18 channels, 129x111 spatial dimensions
+model = CNNBiLSTM()
 output = model(input_tensor)
-print(output.shape)  # Expected shape: [1, 64]
+print(output.shape)  # Expected shape: [1, 4] for classification
+
