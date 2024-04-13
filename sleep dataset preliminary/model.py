@@ -136,9 +136,9 @@ class BiLSTM(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
-class CNNBiLSTM(nn.Module):
+class EEGSNet(nn.Module):
     def __init__(self):
-        super(CNNBiLSTM, self).__init__()
+        super(EEGSNet, self).__init__()
         self.cnn = SleepStageCNN()
         self.bilstm = BiLSTM(input_size=64, hidden_size=128, num_layers=2, num_classes=4)
 
@@ -155,8 +155,8 @@ class CNNBiLSTM(nn.Module):
         return output
 
 # Assuming your input is a batch of images treated as a sequence
-input_tensor = torch.randn(1, 10, 18, 129, 111)  # 1 batch, 10 sequence length, 18 channels, 129x111 spatial dimensions
-model = CNNBiLSTM()
+input_tensor = torch.randn(1, 3, 18, 129, 111)  # 1 batch, 10 sequence length, 18 channels, 129x111 spatial dimensions
+model = EEGSNet()
 output = model(input_tensor)
 print(output.shape)  # Expected shape: [1, 4] for classification
 
