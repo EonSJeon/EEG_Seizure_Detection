@@ -51,19 +51,73 @@ for label in CERTAIN_LABELS:
 # Handle the special case '2 or 3 (unscorable)'
 SOL_DICT['2 or 3 (unscorable)'] = [0, 0, 0.5, 0.5]
 
-print("Original Priors:", PRIOR)
-print("Transformed Probabilities:", SOL_DICT)
+#########################################################################################
+#########################################################################################
+#########################################################################################
+#########################################################################################
+#########################################################################################
+#########################################################################################
 
-import prettytable as pt
+# SOL_DICT Initiated
 
-# Create a table with headings
-table = pt.PrettyTable()
-table.field_names = ["Label", "W", "1", "2", "3"]
+import torch.optim as optim
 
-# Populate the table with data from SOL_DICT
-for label, probabilities in SOL_DICT.items():
-    # Convert each probability list into a string for nice formatting (optional)
-    probabilities_str = [f"{prob:.5f}" for prob in probabilities]
-    table.add_row([label] + probabilities_str)
+criterion = nn.CrossEntropyLoss()  # Appropriate for classification with a fixed number of classes
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-print(table)
+from torch.utils.data import Dataset, DataLoader
+
+class EEGDataset(Dataset):
+    def __init__(self, data, labels):
+        """
+        Args:
+            data (list or ndarray): The data samples.
+            labels (list): The target labels.
+        """
+        self.data = data
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        sample = self.data[idx]
+        label = self.labels[idx]
+        return sample, label
+
+# Example: Loading dataset
+# data should be preprocessed to have shape [batch_size, seq_length, channels, height, width]
+# labels should be indices for classification: [batch_size]
+train_data = [...]  # Populate with your data
+train_labels = [...]  # Populate with your labels
+train_dataset = EEGDataset(train_data, train_labels)
+train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
+
+def train_model(model, train_loader, criterion, optimizer, num_epochs=25):
+    model.train()  # Set the model to training mode
+    for epoch in range(num_epochs):
+        running_loss = 0.0
+        for inputs, labels in train_loader:
+            inputs = inputs.to(device)  # Assume 'device' is defined (either 'cuda' or 'cpu')
+            labels = labels.to(device)
+
+            # Zero the parameter gradients
+            optimizer.zero_grad()
+
+            # Forward pass
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+
+            # Backward and optimize
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item() * inputs.size(0)
+        epoch_loss = running_loss / len(train_loader.dataset)
+        
+        print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}')
+
+    print('Finished Training')
+
+# Train the model
+train_model(model, train_loader, criterion, optimizer, num_epochs=50)
