@@ -1,5 +1,6 @@
 import sympy as sp
 
+
 # Dictionary of label distributions
 LABEL_DSTR = {
     'W': 3114, '1': 2105, '2': 1243, '3': 42,
@@ -37,7 +38,7 @@ SOL_DICT = {
     '1': [0, 1, 0, 0],
     '2': [0, 0, 1, 0],
     '3': [0, 0, 0, 1],
-    'unscorable': list(PRIOR.values()),  # Default uncertain vector for unscorable types
+    'unscorable': list(PRIOR.values()), 
     'Unscorable': list(PRIOR.values())
 }
 
@@ -52,3 +53,17 @@ SOL_DICT['2 or 3 (unscorable)'] = [0, 0, 0.5, 0.5]
 
 print("Original Priors:", PRIOR)
 print("Transformed Probabilities:", SOL_DICT)
+
+import prettytable as pt
+
+# Create a table with headings
+table = pt.PrettyTable()
+table.field_names = ["Label", "W", "1", "2", "3"]
+
+# Populate the table with data from SOL_DICT
+for label, probabilities in SOL_DICT.items():
+    # Convert each probability list into a string for nice formatting (optional)
+    probabilities_str = [f"{prob:.5f}" for prob in probabilities]
+    table.add_row([label] + probabilities_str)
+
+print(table)
