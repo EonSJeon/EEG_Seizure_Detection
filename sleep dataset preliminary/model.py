@@ -114,49 +114,52 @@ class SleepStageCNN(nn.Module):
         x = torch.flatten(x, 1)
         return x
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
+class EEGSNet(nn.Module):
+    def __init__(self):
+        super(EEGSNet, self).__init__()
+        self.cnn = SleepStageCNN()  # Assuming SleepStageCNN is defined as above
+        self.bilstm = BiLSTM(input_size=64, hidden_size=128, num_layers=2, num_classes=4)
+
+    def forward(self, x):
+        batch_size, seq_length, C, H, W = x.shape
+        # Process each image in the sequence through CNN using a list comprehension for efficiency
+        cnn_out = [self.cnn(x[:, i, :, :, :]) for i in range(seq_length)]
+        # Stack along the sequence dimension (dim=1) after processing through CNN
+        cnn_out = torch.stack(cnn_out, dim=1)
+
+        # Pass the entire batch of sequence data to BiLSTM
+        output = self.bilstm(cnn_out)
+
+        return output
+
+# LSTM improvements - removing manual initial state handling
 class BiLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes):
         super(BiLSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
                             batch_first=True, bidirectional=True)
         self.fc = nn.Linear(hidden_size * 2, num_classes)  # Multiply by 2 for bidirectional
 
     def forward(self, x):
-        # Set initial states
-        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)  # 2 for bidirectional
-        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
-        
         # Forward propagate LSTM
-        out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size*2)
+        out, _ = self.lstm(x)  # Let PyTorch handle initial states
 
         # Decode the hidden state of the last time step
         out = self.fc(out[:, -1, :])
         return out
 
-class EEGSNet(nn.Module):
-    def __init__(self):
-        super(EEGSNet, self).__init__()
-        self.cnn = SleepStageCNN()
-        self.bilstm = BiLSTM(input_size=64, hidden_size=128, num_layers=2, num_classes=4)
 
-    def forward(self, x):
-        batch_size, seq_length, C, H, W = x.shape
-        # Process each image in the sequence through CNN
-        cnn_out = torch.tensor([]).to(x.device)
-        for i in range(seq_length):
-            out = self.cnn(x[:, i, :, :, :])  # Process each image through the CNN
-            cnn_out = torch.cat((cnn_out, out.unsqueeze(1)), dim=1)
+# # Model instantiation and optimizer setup
+# model = EEGSNet().to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
 
-        # Now cnn_out should be [batch_size, seq_length, features]
-        output = self.bilstm(cnn_out)
-        return output
 
-# Assuming your input is a batch of images treated as a sequence
-input_tensor = torch.randn(1, 3, 18, 129, 111)  # 1 batch, 10 sequence length, 18 channels, 129x111 spatial dimensions
-model = EEGSNet()
-output = model(input_tensor)
-print(output.shape)  # Expected shape: [1, 4] for classification
+# # Assuming your input is prepared as required
+# input_tensor = torch.randn(1, 3, 18, 129, 111)  # Example input
+# output = model(input_tensor)
+# print(output.shape)  # Should now output the shape [1, 4], each summing to 1
+# print(output)  # Outputs the probabilities for each class
 

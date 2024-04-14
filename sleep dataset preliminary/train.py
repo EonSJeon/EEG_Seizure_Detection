@@ -1,123 +1,115 @@
-import sympy as sp
-
-
-# Dictionary of label distributions
-LABEL_DSTR = {
-    'W': 3114, '1': 2105, '2': 1243, '3': 42,
-    '1 (unscorable)': 6, '2 (unscorable)': 10, '3 (unscorable)': 11, '2 or 3 (unscorable)': 3, 
-    'W (uncertain)': 38, '1 (uncertain)': 41, '2 (uncertain)': 8, '3 (uncertain)': 1,
-    'unscorable': 2, 'Unscorable': 1
-}
-
-# Labels considered for basic prior calculation
-CERTAIN_LABELS = ['W', '1', '2', '3']
-
-# Calculate the sum of counts for certain labels
-tempSum = sum(LABEL_DSTR[label] for label in CERTAIN_LABELS)
-PRIOR = {label: LABEL_DSTR[label] / tempSum for label in CERTAIN_LABELS}
-
-def uncertain_vec(label):
-    """ Calculates transformed probabilities for given label considering the effect of other labels. """
-    p = sp.symbols('p')
-    p_label = PRIOR[label]
-    other_labels = {k: v for k, v in PRIOR.items() if k != label}
-    max_other_p = max(other_labels.values())
-
-    # Solve the probability transformation equation
-    equation = sp.Eq(p, (1 - p) / (1 - p_label) * max_other_p)
-    solution = sp.solve(equation, p)
-    p_value = min([sol.evalf() for sol in solution if sol.is_real and sol >= 0], default=0)
-
-    # Apply the transformation to all probabilities
-    transformed_probabilities = {k: (v * (1 - p_value) / (1 - p_label) if k != label else p_value) for k, v in PRIOR.items()}
-    return [transformed_probabilities[k] for k in CERTAIN_LABELS]
-
-# Dictionary for storing the solution vectors for each label type
-SOL_DICT = {
-    'W': [1, 0, 0, 0],
-    '1': [0, 1, 0, 0],
-    '2': [0, 0, 1, 0],
-    '3': [0, 0, 0, 1],
-    'unscorable': list(PRIOR.values()), 
-    'Unscorable': list(PRIOR.values())
-}
-
-# Update dictionary with vectors from uncertain vector calculations
-for label in CERTAIN_LABELS:
-    uncertain_vec_result = uncertain_vec(label)
-    for uncertain_label in [f'{label} (unscorable)', f'{label} (uncertain)']:
-        SOL_DICT[uncertain_label] = uncertain_vec_result
-
-# Handle the special case '2 or 3 (unscorable)'
-SOL_DICT['2 or 3 (unscorable)'] = [0, 0, 0.5, 0.5]
-
-#########################################################################################
-#########################################################################################
-#########################################################################################
-#########################################################################################
-#########################################################################################
-#########################################################################################
-
-# SOL_DICT Initiated
-
-import torch.optim as optim
-
-criterion = nn.CrossEntropyLoss()  # Appropriate for classification with a fixed number of classes
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
+import torch
+from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
+from dataset import EEGDataset  # Assuming EEGDataset is correctly implemented
+from model import EEGSNet  # Assuming EEGSNet is correctly implemented
+from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
+import torch.nn.functional as F
 
-class EEGDataset(Dataset):
-    def __init__(self, data, labels):
-        """
-        Args:
-            data (list or ndarray): The data samples.
-            labels (list): The target labels.
-        """
-        self.data = data
-        self.labels = labels
+# Set device for training (GPU if available, otherwise CPU)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Training on device: {device}')
 
-    def __len__(self):
-        return len(self.data)
+# Hyperparameters
+learning_rate = 0.001
+batch_size = 10
+num_epochs = 50
 
-    def __getitem__(self, idx):
-        sample = self.data[idx]
-        label = self.labels[idx]
-        return sample, label
+# Model, loss, and optimizer
+model = EEGSNet().to(device)
+criterion = nn.CrossEntropyLoss()  # Appropriate for classification tasks
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# Example: Loading dataset
-# data should be preprocessed to have shape [batch_size, seq_length, channels, height, width]
-# labels should be indices for classification: [batch_size]
-train_data = [...]  # Populate with your data
-train_labels = [...]  # Populate with your labels
-train_dataset = EEGDataset(train_data, train_labels)
-train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
+# Data directories
+root_dir = '/Users/jeonsang-eon/sleep_data_processed/'
 
-def train_model(model, train_loader, criterion, optimizer, num_epochs=25):
-    model.train()  # Set the model to training mode
+
+def collate_fn(batch):
+    batch.sort(key=lambda x: len(x[0]), reverse=True)
+    sequences, labels = zip(*batch)
+
+    # Determine maximum sizes for each dimension
+    max_seq_len = max([s.size(0) for s in sequences])
+    max_channel = max([s.size(1) for s in sequences])
+    max_height = max([s.size(2) for s in sequences])
+    max_width = max([s.size(3) for s in sequences])
+
+    # Pad sequences manually
+    padded_sequences = torch.stack([
+        F.pad(seq, (0, max_width - seq.size(3), 0, max_height - seq.size(2), 0, max_channel - seq.size(1), 0, max_seq_len - seq.size(0)))
+        for seq in sequences
+    ], dim=0)
+
+    labels = torch.stack(labels)  # First, make sure labels is a proper tensor
+    labels = torch.argmax(labels, dim=1)  # Convert from one-hot to indices
+    
+    # Optional: You could also calculate and return the original lengths for use in models that need them
+    lengths = torch.tensor([len(seq) for seq in sequences])
+
+    return padded_sequences, labels, lengths
+
+
+
+def train_model(model, train_loader, criterion, optimizer, num_epochs):
+    model.train()
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for inputs, labels in train_loader:
-            inputs = inputs.to(device)  # Assume 'device' is defined (either 'cuda' or 'cpu')
-            labels = labels.to(device)
+        for inputs, labels, lengths in train_loader:
+            assert labels.dtype == torch.long, "Labels must be of type torch.long"
+            inputs, labels, lengths = inputs.to(device), labels.to(device), lengths.to(device)
 
-            # Zero the parameter gradients
             optimizer.zero_grad()
+            outputs = model(inputs)  # Ensure outputs are logits
 
-            # Forward pass
-            outputs = model(inputs)
+            print(outputs)
+            print(labels)
+
             loss = criterion(outputs, labels)
-
-            # Backward and optimize
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item() * inputs.size(0)
         epoch_loss = running_loss / len(train_loader.dataset)
-        
         print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}')
 
-    print('Finished Training')
+
+
+def test_model(model, test_loader, criterion):
+    model.eval()  # Set the model to evaluation mode
+    total_loss = 0
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+
+            loss = criterion(outputs, labels)
+            total_loss += loss.item() * inputs.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print(f'Test Loss: {total_loss / len(test_loader.dataset):.4f}')
+    print(f'Accuracy: {100 * correct / total:.2f}%')
+
+# Training dataset
+train_nums = [1, 2]
+train_dataset = EEGDataset(subj_nums=train_nums, root_path=root_dir)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+
+# Testing dataset
+test_nums = [33]
+test_dataset = EEGDataset(subj_nums=test_nums, root_path=root_dir)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
 # Train the model
-train_model(model, train_loader, criterion, optimizer, num_epochs=50)
+train_model(model, train_loader, criterion, optimizer, num_epochs)
+
+# Test the model
+test_model(model, test_loader, criterion)
+
+# Save the model checkpoint
+torch.save(model.state_dict(), 'model_checkpoint.pth')
+print("Model saved to model_checkpoint.pth")
+
