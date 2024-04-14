@@ -57,22 +57,9 @@ def count_files_by_format(root_dir):
         print()  # Add a newline for better separation between folders
 
 # Define the root directory you want to inspect
-root_dir = '/Users/jeonsang-eon/sleep_data_processed/'
+root_dir = '/Users/jeonsang-eon/sleep_data_processed/sub-01/'
 
 # Call the function
 count_files_by_format(root_dir)
 
-expected_folders = {f"sub-{i:02d}" for i in range(1, 34)}  # Generate a set from sub-01 to sub-33
-actual_folders = {
-    "sub-13", "sub-14", "sub-22", "sub-25", "sub-24", "sub-23", "sub-15", "sub-12", "sub-30", 
-    "sub-08", "sub-01", "sub-06", "sub-07", "sub-09", "sub-31", "sub-17", "sub-28", "sub-10",
-    "sub-26", "sub-19", "sub-21", "sub-20", "sub-27", "sub-18", "sub-11", "sub-16", "sub-29",
-    "sub-33", "sub-05", "sub-02", "sub-03", "sub-04"
-}
 
-# Determine missing folders
-missing_folders = expected_folders - actual_folders
-
-# Print the results
-print(f"Total folders listed: {len(actual_folders)}")
-print(f"Missing folders: {sorted(missing_folders)}")

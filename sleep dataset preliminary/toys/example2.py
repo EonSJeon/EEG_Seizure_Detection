@@ -1,29 +1,30 @@
-import mne
-import matplotlib.pyplot as plt
-import numpy as np
+import os
+import re
 
-# Load the EDF file
-file_path = './modified_data.edf'
-raw = mne.io.read_raw_edf(file_path, preload=True)
+def rename_files(root_dir):
+    """
+    Rename files in the specified directory and its subdirectories
+    from '#s.extension' to '#.extension', where # is a number.
+    """
+    # Regex to identify and capture the required filename pattern
+    pattern = re.compile(r'(\d+)s(\.\w+)$')  # Matches '123s.npy', capturing '123' and '.npy'
 
-# Assuming 'raw' is your loaded EEG data
-data, times = raw[:]
+    # Walk through all directories and subdirectories
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        for filename in filenames:
+            # Check if the filename matches the pattern
+            match = pattern.search(filename)
+            if match:
+                # Construct the new filename
+                new_filename = f"{match.group(1)}{match.group(2)}"
+                # Get the full path of the current file and the new file
+                old_filepath = os.path.join(dirpath, filename)
+                new_filepath = os.path.join(dirpath, new_filename)
 
-# Select the first channel data
-# Change 0 to another index to select a different channel
-channel_data = data[0]  # First channel data
-sampling_rate = int(raw.info['sfreq'])  # Get the sampling rate
+                # Rename the file
+                os.rename(old_filepath, new_filepath)
+                print(f"Renamed '{old_filepath}' to '{new_filepath}'")
 
-# Generate the spectrogram
-plt.figure(figsize=(10, 6))
-# Using default normalization by removing norm=LogNorm()
-Pxx, freqs, bins, im = plt.specgram(channel_data, NFFT=2048, Fs=sampling_rate, noverlap=1024, cmap='viridis')
-
-# Limit the frequency to under 32 Hz for visualization
-plt.ylim(0, 32)
-
-plt.colorbar(im).set_label('Intensity (dB)')
-plt.xlabel('Time (s)')
-plt.ylabel('Frequency (Hz)')
-plt.title('Spectrogram of the First Channel')
-plt.show()
+# Specify the root directory
+root_dir = '/Users/jeonsang-eon/sleep_data_processed'
+rename_files(root_dir)
