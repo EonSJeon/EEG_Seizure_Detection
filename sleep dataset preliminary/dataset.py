@@ -109,8 +109,12 @@ class EEGSesDataset(Dataset):
 
         for i in range(0, max_time + 1, 30):
             data_path = os.path.join(self.session_path, f"{i}.npy")
-            data = np.load(data_path) if os.path.exists(data_path) else np.zeros((1,))
-            self.data.append(data)
+            if os.path.exists(data_path):
+                data = np.load(data_path)
+                self.data.append(data)
+            else:
+                print(f"data path{data_path} is wrong")
+            
         
 
     def __len__(self):
@@ -119,8 +123,17 @@ class EEGSesDataset(Dataset):
     def __getitem__(self, idx):
         current_time = self.times[idx]
         data_idx = current_time // 30  # Index of the data in self.data
+        # print(f"current_time: {current_time}")
         
-        data = self.data[0:data_idx]  # Corrected to fetch the correct segment only
+        if(data_idx>len(self)):
+            raise IndexError("Index out of range")
+        
+        # print(f"data_idx: {data_idx}")
+
+        # Assuming self.data is a list of numpy arrays
+        data = np.expand_dims(self.data[0], axis=0) if data_idx == 0 \
+            else self.data[0:data_idx]
+
         label = self.labels[idx]
 
         data = torch.tensor(data, dtype=torch.float32)
@@ -168,24 +181,12 @@ class EEGSubjDataset(Dataset):
         # Load the correct session dataset if not loaded or idx is out of the current range
         for session_path, (start_idx, end_idx) in zip(self.session_paths, self.index_ranges):
             if start_idx <= idx < end_idx:
+                # print(f"subject-session from {session_path}")
                 self.current_session_dataset = EEGSesDataset(session_path)
                 self.current_session_start_idx = start_idx
                 return self.current_session_dataset[idx - start_idx]
 
         raise IndexError("Index out of range")
-
-
-# subj_dir ='/Users/jeonsang-eon/sleep_data_processed/sub-11'
-# exampleDataset=EEGSubjDataset(subj_dir)
-
-# l=len(exampleDataset)
-# for i in range(l):
-#     print(exampleDataset[i][1])
-# print(exampleDataset)
-# print(exampleDataset[50])
-# print(exampleDataset[50][0].shape)
-# print(exampleDataset[50][1])
-# print(len(exampleDataset))
 
 
 class EEGDataset(Dataset):
@@ -208,6 +209,7 @@ class EEGDataset(Dataset):
 
     def __getitem__(self, idx):
         # Loop through all subject datasets to find the correct data index
+   
         for subj_dataset, (start_idx, end_idx) in zip(self.subj_datasets, self.index_ranges):
             if start_idx <= idx < end_idx:
                 return subj_dataset[idx - start_idx]
@@ -215,14 +217,23 @@ class EEGDataset(Dataset):
         raise IndexError("Index out of range")
 
 
-# Initialize dataset
-data_dir = '/Users/jeonsang-eon/sleep_data_processed/'
-subj_nums=[1,2]
-ex = EEGDataset(subj_nums=subj_nums,root_path=data_dir)
-l=len(ex)
-for i in range(l):
-    print(ex[i][0].shape)
-    print(ex[i][1])
+# # Initialize dataset
+# import random
+
+# data_dir = '/Users/jeonsang-eon/sleep_data_processed/'
+# subj_nums = [1, 2]
+# ex = EEGDataset(subj_nums=subj_nums, root_path=data_dir)
+# l = len(ex)
+# lt = [i for i in range(l)]
+# random.shuffle(lt)  # Correctly shuffle the list
+
+# for i in lt:
+#     data, label = ex[i]  # Assuming each item returns a tuple (data, label)
+#     print(data.shape)
+#     print(label)
+#     if(data.shape==0):
+#         print('Wrong')
+
 # print(ex)
 # print(ex[50])
 # print(ex[50][0].shape)

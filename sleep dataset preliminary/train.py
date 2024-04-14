@@ -5,15 +5,16 @@ from dataset import EEGDataset  # Assuming EEGDataset is correctly implemented
 from model import EEGSNet  # Assuming EEGSNet is correctly implemented
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 import torch.nn.functional as F
+import numpy as np
 
 # Set device for training (GPU if available, otherwise CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Training on device: {device}')
 
 # Hyperparameters
-learning_rate = 0.001
-batch_size = 1
-num_epochs = 50
+learning_rate = 0.01
+batch_size = 16
+num_epochs = 10
 
 # Model, loss, and optimizer
 model = EEGSNet().to(device)
@@ -39,6 +40,7 @@ def collate_fn(batch):
         for seq in sequences
     ], dim=0)
 
+
     # Convert list of labels tensors to a single tensor
     labels = torch.stack(labels, dim=0)  # Stack the labels which are assumed to be tensors already
     labels = torch.argmax(labels, dim=1)  # Convert from one-hot to indices if they are one-hot encoded
@@ -62,9 +64,6 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs):
             optimizer.zero_grad()
             outputs = model(inputs)  # Ensure outputs are logits
 
-            print(outputs)
-            print(labels)
-
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -81,7 +80,7 @@ def test_model(model, test_loader, criterion):
     correct = 0
     total = 0
     with torch.no_grad():
-        for inputs, labels in test_loader:
+        for inputs, labels, _ in test_loader:
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
 
@@ -95,14 +94,14 @@ def test_model(model, test_loader, criterion):
     print(f'Accuracy: {100 * correct / total:.2f}%')
 
 # Training dataset
-train_nums = [1, 2]
+train_nums = [1,2,3,4]
 train_dataset = EEGDataset(subj_nums=train_nums, root_path=root_dir)
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
 # Testing dataset
-test_nums = [33]
+test_nums = [5]
 test_dataset = EEGDataset(subj_nums=test_nums, root_path=root_dir)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
 # Train the model
 train_model(model, train_loader, criterion, optimizer, num_epochs)
