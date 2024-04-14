@@ -12,7 +12,7 @@ print(f'Training on device: {device}')
 
 # Hyperparameters
 learning_rate = 0.001
-batch_size = 10
+batch_size = 1
 num_epochs = 50
 
 # Model, loss, and optimizer
@@ -24,29 +24,30 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 root_dir = '/Users/jeonsang-eon/sleep_data_processed/'
 
 
+
 def collate_fn(batch):
+    # Sort the batch in the order of decreasing sequence length
     batch.sort(key=lambda x: len(x[0]), reverse=True)
     sequences, labels = zip(*batch)
 
-    # Determine maximum sizes for each dimension
+    # Calculate the maximum sequence length in this batch
     max_seq_len = max([s.size(0) for s in sequences])
-    max_channel = max([s.size(1) for s in sequences])
-    max_height = max([s.size(2) for s in sequences])
-    max_width = max([s.size(3) for s in sequences])
 
-    # Pad sequences manually
+    # Pad sequences to the max length found in the batch
     padded_sequences = torch.stack([
-        F.pad(seq, (0, max_width - seq.size(3), 0, max_height - seq.size(2), 0, max_channel - seq.size(1), 0, max_seq_len - seq.size(0)))
+        F.pad(seq, (0, 0, 0, 0, 0, 0, 0, max_seq_len - seq.size(0)))  # Only pad the sequence dimension
         for seq in sequences
     ], dim=0)
 
-    labels = torch.stack(labels)  # First, make sure labels is a proper tensor
-    labels = torch.argmax(labels, dim=1)  # Convert from one-hot to indices
-    
-    # Optional: You could also calculate and return the original lengths for use in models that need them
-    lengths = torch.tensor([len(seq) for seq in sequences])
+    # Convert list of labels tensors to a single tensor
+    labels = torch.stack(labels, dim=0)  # Stack the labels which are assumed to be tensors already
+    labels = torch.argmax(labels, dim=1)  # Convert from one-hot to indices if they are one-hot encoded
+
+    # Calculate the original lengths of each sequence for potential use in models like RNN
+    lengths = torch.tensor([len(seq) for seq in sequences], dtype=torch.long)
 
     return padded_sequences, labels, lengths
+
 
 
 

@@ -216,12 +216,13 @@ class EEGDataset(Dataset):
 
 
 # Initialize dataset
-# data_dir = '/Users/jeonsang-eon/sleep_data_processed/'
-# subj_nums=[1,2]
-# ex = EEGDataset(subj_nums=subj_nums,root_path=data_dir)
-# l=len(ex)
-# for i in range(l):
-#     print(ex[i][1])
+data_dir = '/Users/jeonsang-eon/sleep_data_processed/'
+subj_nums=[1,2]
+ex = EEGDataset(subj_nums=subj_nums,root_path=data_dir)
+l=len(ex)
+for i in range(l):
+    print(ex[i][0].shape)
+    print(ex[i][1])
 # print(ex)
 # print(ex[50])
 # print(ex[50][0].shape)
