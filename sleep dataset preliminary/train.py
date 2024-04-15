@@ -18,6 +18,8 @@ num_epochs = 10
 
 # Model, loss, and optimizer
 model = EEGSNet().to(device)
+state_dict = torch.load('model_checkpoint.pth')
+model.load_state_dict(state_dict)
 criterion = nn.CrossEntropyLoss()  # Appropriate for classification tasks
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -88,6 +90,7 @@ def test_model(model, test_loader, criterion):
             total_loss += loss.item() * inputs.size(0)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
+
             correct += (predicted == labels).sum().item()
 
     print(f'Test Loss: {total_loss / len(test_loader.dataset):.4f}')
