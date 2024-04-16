@@ -62,7 +62,7 @@ def process(patient_num, preictal_duration, window_duration, num_time_steps):
     y_epoch_labels = []
     feature_lists = []
 
-    window_duration = 30  # Duration of each epoch in seconds
+    #window_duration = 30  # Duration of each epoch in seconds
     windows = mne.make_fixed_length_epochs(raws_concatenated, duration=window_duration)
     window_samples = window_duration*fs
 
@@ -74,7 +74,7 @@ def process(patient_num, preictal_duration, window_duration, num_time_steps):
         y_epoch_labels.append(max(counts, key=counts.get))
 
 
-    for i, sequence in enumerate(sequences):
+    for sequence in sequences:
         psds, freqs = mne.time_frequency.psd_array_multitaper(sequence, sfreq=fs, fmin=0, fmax=120, adaptive=True)
         #feature_matrix = np.zeros((18, 15))
 
