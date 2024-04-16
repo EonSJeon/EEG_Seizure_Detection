@@ -16,7 +16,7 @@ def lstm_model(input_shape):
     return model
 
 # Define input shape
-num_time_steps = 3
+num_time_steps = 10
 num_features = 15*18 
 
 input_shape = (num_time_steps, num_features)  # Ten features extracted from five frequency bands of 23-channel EEG signal
@@ -29,9 +29,9 @@ model_lstm.summary()
 model_lstm.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Train the model (adjust epochs according to the provided specifications)
-patient_num = 16
+patient_num = 1
 from process import process
-x,y = process(patient_num, 15, 30, 6)
+x,y = process(patient_num, 30, 120, num_time_steps)
 #print(len(x))
 #print(len(y))
 
@@ -54,7 +54,9 @@ y_test_pred = model_lstm.predict(X_test)
 y_test_pred = np.argmax(y_test_pred, axis=1)
 y_test_true = np.argmax(y_test, axis=1)
 
-# cm = confusion_matrix(y_test_true, y_test_pred)
+#cm = confusion_matrix(y_test_true, y_test_pred)
+#print(cm)
+
 
 # plt.figure(figsize=(8, 6))
 # sns.heatmap(cm, annot=True, cmap='Blues', fmt='g', cbar=False)
