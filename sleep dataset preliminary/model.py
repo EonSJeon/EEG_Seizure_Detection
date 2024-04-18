@@ -53,6 +53,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchview import draw_graph
+
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, pool, pool_type='max', dropout_prob=0.5):
@@ -162,4 +164,10 @@ class BiLSTM(nn.Module):
 # output = model(input_tensor)
 # print(output.shape)  # Should now output the shape [1, 4], each summing to 1
 # print(output)  # Outputs the probabilities for each class
+
+CNNmodel=SleepStageCNN()
+CNNmodel_graph = draw_graph(CNNmodel, input_size=(16,18,129,111), expand_nested=True)
+
+# Assuming CNNmodel_graph.visual_graph holds the image representation
+CNNmodel_graph.visual_graph.view()
 

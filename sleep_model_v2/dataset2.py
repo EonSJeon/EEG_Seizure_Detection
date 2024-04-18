@@ -53,9 +53,9 @@ class EEGSubjDataset(Dataset):
         return data, label
 
 # # Example usage
-data_dir = '/Users/jeonsang-eon/sleep_data_processed2/'
-subj_nums = [1, 2]
-dataset = EEGDataset(subj_nums=subj_nums, root_path=data_dir)
+# data_dir = '/Users/jeonsang-eon/sleep_data_processed2/'
+# subj_nums = [1, 2]
+# dataset = EEGDataset(subj_nums=subj_nums, root_path=data_dir)
 # print(f"Dataset Length: {len(dataset)}")
 # l=len(dataset)
 # for i in range(l):
