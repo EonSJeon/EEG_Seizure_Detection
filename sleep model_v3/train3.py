@@ -16,8 +16,8 @@ root_data_path = '/Users/jeonsang-eon/sleep_data_processed3/'
 sub_nums = [
     2, 3, 4, 5, 6, 7, 8, 9, 10,
     11, 12, 13, 14, 15, 17, 18, 19, 20,
-    21, 22, 23, 25, 26, 27, 28, 29, 30,
-    31, 32, 33
+    21, 22, 23, 25, 27, 28, 29, 30,
+    32, 33
 ]
 
 class SubDataset:
@@ -74,7 +74,7 @@ def plot_confusion_matrix(cm, sub_num, labels=['Class 0', 'Class 1']):
     plt.title(f'Confusion Matrix for {sub_num}')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    plt.savefig(f'Confusion_Matrix_{sub_num}.png')
+    plt.savefig(f'Confusion_Matrix_{sub_num}_RE.png')
     plt.close()
 
 def plot_roc_curve(fpr, tpr, roc_auc, i):
@@ -87,7 +87,7 @@ def plot_roc_curve(fpr, tpr, roc_auc, i):
     plt.ylabel('True Positive Rate')
     plt.title(f'Receiver Operating Characteristic for Subject {i}')
     plt.legend(loc="lower right")
-    plt.savefig(f'ROC_Curve_Subject_{i}.png')
+    plt.savefig(f'ROC_Curve_Subject_{i}_RE.png')
     plt.close()
 
 def plot_loss_curve(epoch_losses, sub_num):
@@ -97,7 +97,7 @@ def plot_loss_curve(epoch_losses, sub_num):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.grid(True)
-    plt.savefig(f'Loss_Curve_Subject_{sub_num}.png')
+    plt.savefig(f'Loss_Curve_Subject_{sub_num}_RE.png')
     plt.close()
 
 total_conf_matrix = np.zeros((2, 2))  # Adjust dimensions based on the number of classes
@@ -153,7 +153,7 @@ print(average_conf_matrix)
 average_conf_matrix = average_conf_matrix.astype(int)  # Convert to integer for visualization and saving
 
 plot_confusion_matrix(average_conf_matrix, 'Average')  # Save the average confusion matrix as a heatmap
-np.savetxt('Average_Confusion_Matrix.txt', average_conf_matrix, fmt='%d')  # Also save as text for numerical analysis
+np.savetxt('Average_Confusion_Matrix_Re.txt', average_conf_matrix, fmt='%d')  # Also save as text for numerical analysis
 
 average_roc_auc = sum(roc_aucs) / len(roc_aucs)
 print(f"Average AUC: {average_roc_auc}")
